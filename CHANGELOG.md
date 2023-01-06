@@ -1,5 +1,10 @@
 # TIDE Changelog
 
+## v1.2.0
+
+- Add get_summary
+- get_confusion_matrix no longer prints to stdout
+
 ## v1.1.0
 
 - Add per class dAP analysis.
