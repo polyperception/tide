@@ -17,7 +17,13 @@ import os, math
 class TIDEExample:
     """ Computes all the data needed to evaluate a set of predictions and gt for a single image. """
 
-    def __init__(self, preds: list, gt: list, pos_thresh: float, mode: str, max_dets: int, run_errors: bool = True):
+    def __init__(self,
+                 preds: list,
+                 gt: list,
+                 pos_thresh: float,
+                 mode: str,
+                 max_dets: int,
+                 run_errors: bool = True):
         self.preds = preds
         self.gt = [x for x in gt if not x['ignore']]
         self.ignore_regions = [x for x in gt if x['ignore']]
@@ -46,7 +52,8 @@ class TIDEExample:
         detections = [x[det_type] for x in preds]
 
         # IoU is [len(detections), len(gt)]
-        self.gt_iou = mask_utils.iou(detections, [x[det_type] for x in gt], [False] * len(gt))
+        self.gt_iou = mask_utils.iou(detections, [x[det_type] for x in gt],
+                                     [False] * len(gt))
 
         # Store whether a prediction / gt got used in their data list
         # Note: this is set to None if ignored, keep that in mind
@@ -92,7 +99,8 @@ class TIDEExample:
         if len(ignore) > 0:
             # Because ignore regions have extra parameters, it's more efficient to use a for loop here
             for ignore_region in ignore:
-                if ignore_region['mask'] is None and ignore_region['bbox'] is None:
+                if ignore_region['mask'] is None and ignore_region[
+                        'bbox'] is None:
                     # The region should span the whole image
                     ignore_iou = [1] * len(preds)
                 else:
@@ -100,7 +108,9 @@ class TIDEExample:
                         # There is no det_type annotation for this specific region so skip it
                         continue
                     # Otherwise, compute the crowd IoU between the detections and this region
-                    ignore_iou = mask_utils.iou(detections, [ignore_region[det_type]], [True])
+                    ignore_iou = mask_utils.iou(detections,
+                                                [ignore_region[det_type]],
+                                                [True])
 
                 for pred_idx, pred_elem in enumerate(preds):
                     if not pred_elem['used'] and (ignore_iou[pred_idx] > self.pos_thresh) \
@@ -130,7 +140,9 @@ class TIDERun:
     """ Holds the data for a single run of TIDE. """
 
     # Temporary variables stored in ground truth that we need to clear after a run
-    _temp_vars = ['best_score', 'best_id', 'used', 'matched_with', '_idx', 'usable']
+    _temp_vars = [
+        'best_score', 'best_id', 'used', 'matched_with', '_idx', 'usable'
+    ]
 
     def __init__(self,
                  gt: Data,
@@ -172,7 +184,9 @@ class TIDERun:
             # However, since ignored detections are still used for error calculations, we have to keep them.
             if not self.run_errors:
                 ignored_classes = self.gt._get_ignored_classes(image)
-                x = [pred for pred in x if pred['class'] not in ignored_classes]
+                x = [
+                    pred for pred in x if pred['class'] not in ignored_classes
+                ]
 
             self._eval_image(x, y)
 
@@ -209,14 +223,16 @@ class TIDERun:
             # There are no predictions for this image so add all gt as missed
             for truth in gt:
                 if not truth['ignore']:
-                    self.ap_data.push_false_negative(truth['class'], truth['_id'])
+                    self.ap_data.push_false_negative(truth['class'],
+                                                     truth['_id'])
 
                     if self.run_errors:
                         self._add_error(MissedError(truth))
                         self.false_negatives[truth['class']].append(truth)
             return
 
-        ex = TIDEExample(preds, gt, self.pos_thresh, self.mode, self.max_dets, self.run_errors)
+        ex = TIDEExample(preds, gt, self.pos_thresh, self.mode, self.max_dets,
+                         self.run_errors)
         preds = ex.preds  # In case the number of predictions was restricted to the max
 
         for pred_idx, pred in enumerate(preds):
@@ -226,20 +242,25 @@ class TIDERun:
                 pred['info']['matched_with'] = pred['matched_with']
 
             if pred['used'] is not None:
-                self.ap_data.push(pred['class'], pred['_id'], pred['score'], pred['used'], pred['info'])
+                self.ap_data.push(pred['class'], pred['_id'], pred['score'],
+                                  pred['used'], pred['info'])
 
             # ----- ERROR DETECTION ------ #
             # This prediction is a negative (or ignored), let's find out why
-            if self.run_errors and (pred['used'] == False or pred['used'] == None):
+            if self.run_errors and (pred['used'] == False
+                                    or pred['used'] == None):
                 # Test for BackgroundError
-                if len(ex.gt) == 0:  # Note this is ex.gt because it doesn't include ignore annotations
+                if len(
+                        ex.gt
+                ) == 0:  # Note this is ex.gt because it doesn't include ignore annotations
                     # There is no ground truth for this image, so just mark everything as BackgroundError
                     self._add_error(BackgroundError(pred))
                     continue
 
                 # Test for BoxError
                 idx = ex.gt_cls_iou[pred_idx, :].argmax()
-                if self.bg_thresh <= ex.gt_cls_iou[pred_idx, idx] <= self.pos_thresh:
+                if self.bg_thresh <= ex.gt_cls_iou[pred_idx,
+                                                   idx] <= self.pos_thresh:
                     # This detection would have been positive if it had higher IoU with this GT
                     self._add_error(BoxError(pred, ex.gt[idx], ex))
                     continue
@@ -255,7 +276,8 @@ class TIDERun:
                 idx = ex.gt_used_cls[pred_idx, :].argmax()
                 if ex.gt_used_cls[pred_idx, idx] >= self.pos_thresh:
                     # The detection would have been marked positive but the GT was already in use
-                    suppressor = self.preds.annotations[ex.gt[idx]['matched_with']]
+                    suppressor = self.preds.annotations[ex.gt[idx]
+                                                        ['matched_with']]
                     self._add_error(DuplicateError(pred, suppressor))
                     continue
 
@@ -321,7 +343,8 @@ class TIDERun:
 
         # Add back all the correct ones
         for k in gt_pos.keys():
-            for _id, (score, correct, info) in ap_data.objs[k].data_points.items():
+            for _id, (score, correct,
+                      info) in ap_data.objs[k].data_points.items():
                 if correct:
                     if transform is not None:
                         score, correct, info = transform(score, correct, info)
@@ -351,13 +374,16 @@ class TIDERun:
 
         errors_per_class = {}
         for error in error_types:
-            _ap_data = self.fix_errors(qual._make_error_func(error), ap_data=ap_data, disable_errors=progressive)
+            _ap_data = self.fix_errors(qual._make_error_func(error),
+                                       ap_data=ap_data,
+                                       disable_errors=progressive)
 
             new_per_class_ap = _ap_data.get_per_class_APs()
             # If an error is negative that means it's likely due to binning differences, so just
             # Ignore the negative by setting it to 0.
             errors_per_class[error] = {
-                k: max(new_per_class_ap[k] - last_per_class_ap[k], 0) for k in new_per_class_ap.keys()
+                k: max(new_per_class_ap[k] - last_per_class_ap[k], 0)
+                for k in new_per_class_ap.keys()
             }
 
             if progressive:
@@ -371,7 +397,10 @@ class TIDERun:
 
         return errors_per_class
 
-    def fix_main_errors(self, progressive: bool = False, error_types: list = None, qual: Qualifier = None) -> dict:
+    def fix_main_errors(self,
+                        progressive: bool = False,
+                        error_types: list = None,
+                        qual: Qualifier = None) -> dict:
         ap_data = self.ap_data
         last_ap = self.ap
 
@@ -383,7 +412,9 @@ class TIDERun:
 
         errors = {}
         for error in error_types:
-            _ap_data = self.fix_errors(qual._make_error_func(error), ap_data=ap_data, disable_errors=progressive)
+            _ap_data = self.fix_errors(qual._make_error_func(error),
+                                       ap_data=ap_data,
+                                       disable_errors=progressive)
 
             new_ap = _ap_data.get_mAP()
             # If an error is negative that means it's likely due to binning differences, so just
@@ -402,8 +433,12 @@ class TIDERun:
 
     def fix_special_errors(self, qual=None) -> dict:
         return {
-            FalsePositiveError: self.fix_errors(transform=FalsePositiveError.fix).get_mAP() - self.ap,
-            FalseNegativeError: self.fix_errors(false_neg_dict=self.false_negatives).get_mAP() - self.ap
+            FalsePositiveError:
+            self.fix_errors(transform=FalsePositiveError.fix).get_mAP() -
+            self.ap,
+            FalseNegativeError:
+            self.fix_errors(false_neg_dict=self.false_negatives).get_mAP() -
+            self.ap
         }
 
     def count_errors(self, error_types: list = None, qual=None):
@@ -451,7 +486,10 @@ class TIDE:
    """
 
     # This is just here to define a consistent order of the error types
-    _error_types = [ClassError, BoxError, OtherError, DuplicateError, BackgroundError, MissedError]
+    _error_types = [
+        ClassError, BoxError, OtherError, DuplicateError, BackgroundError,
+        MissedError
+    ]
     _special_error_types = [FalsePositiveError, FalseNegativeError]
 
     # Threshold splits for different challenges
@@ -462,7 +500,10 @@ class TIDE:
     BOX = 'bbox'
     MASK = 'mask'
 
-    def __init__(self, pos_threshold: float = 0.5, background_threshold: float = 0.1, mode: str = BOX):
+    def __init__(self,
+                 pos_threshold: float = 0.5,
+                 background_threshold: float = 0.1,
+                 mode: str = BOX):
         self.pos_thresh = pos_threshold
         self.bg_thresh = background_threshold
         self.mode = mode
@@ -492,7 +533,8 @@ class TIDE:
         mode = self.mode if mode is None else mode
         name = preds.name if name is None else name
 
-        run = TIDERun(gt, preds, pos_thresh, bg_thresh, mode, gt.max_dets, use_for_errors)
+        run = TIDERun(gt, preds, pos_thresh, bg_thresh, mode, gt.max_dets,
+                      use_for_errors)
 
         if use_for_errors:
             self.runs[name] = run
@@ -565,70 +607,93 @@ class TIDE:
                 aps = [trun.ap for trun in thresh_runs]
 
                 # Print Overall AP for a threshold run
-                ap_title = '{} AP @ [{:d}-{:d}]'.format(thresh_runs[0].mode, int(thresh_runs[0].pos_thresh * 100),
-                                                        int(thresh_runs[-1].pos_thresh * 100))
-                print('{:s}: {:.2f}'.format(ap_title, sum(aps) / len(aps)), file=file)
+                ap_title = '{} AP @ [{:d}-{:d}]'.format(
+                    thresh_runs[0].mode, int(thresh_runs[0].pos_thresh * 100),
+                    int(thresh_runs[-1].pos_thresh * 100))
+                print('{:s}: {:.2f}'.format(ap_title,
+                                            sum(aps) / len(aps)),
+                      file=file)
 
                 # Print AP for every threshold on a threshold run
-                P.print_table([['Thresh'] + [str(int(trun.pos_thresh * 100)) for trun in thresh_runs],
-                               ['  AP  '] + ['{:6.2f}'.format(trun.ap) for trun in thresh_runs]],
-                              title=ap_title,
-                              file=file)
+                P.print_table(
+                    [['Thresh'] +
+                     [str(int(trun.pos_thresh * 100))
+                      for trun in thresh_runs], ['  AP  '] +
+                     ['{:6.2f}'.format(trun.ap) for trun in thresh_runs]],
+                    title=ap_title,
+                    file=file)
 
                 # Print qualifiers for a threshold run
                 if len(self.qualifiers) > 0:
                     print(file=file)
                     # Can someone ban me from using list comprehension? this is unreadable
                     qAPs = [
-                        f.mean([trun.qualifiers[q]
-                                for trun in thresh_runs
-                                if q in trun.qualifiers])
-                        for q in self.qualifiers
+                        f.mean([
+                            trun.qualifiers[q] for trun in thresh_runs
+                            if q in trun.qualifiers
+                        ]) for q in self.qualifiers
                     ]
 
                     P.print_table(
-                        [['Name'] + list(self.qualifiers.keys()), [' AP '] + ['{:6.2f}'.format(qAP) for qAP in qAPs]],
+                        [['Name'] + list(self.qualifiers.keys()),
+                         [' AP '] + ['{:6.2f}'.format(qAP) for qAP in qAPs]],
                         title='Qualifiers {}'.format(ap_title),
                         file=file)
 
             # Otherwise, print just the one run we did
             else:
                 # Print Overall AP for a regular run
-                ap_title = '{} AP @ {:d}'.format(run.mode, int(run.pos_thresh * 100))
+                ap_title = '{} AP @ {:d}'.format(run.mode,
+                                                 int(run.pos_thresh * 100))
                 print('{}: {:.2f}'.format(ap_title, run.ap))
 
                 # Print qualifiers for a regular run
                 if len(self.qualifiers) > 0:
                     print()
-                    qAPs = [run.qualifiers[q] if q in run.qualifiers else 0 for q in self.qualifiers]
+                    qAPs = [
+                        run.qualifiers[q] if q in run.qualifiers else 0
+                        for q in self.qualifiers
+                    ]
                     P.print_table(
-                        [['Name'] + list(self.qualifiers.keys()), [' AP '] + ['{:6.2f}'.format(qAP) for qAP in qAPs]],
+                        [['Name'] + list(self.qualifiers.keys()),
+                         [' AP '] + ['{:6.2f}'.format(qAP) for qAP in qAPs]],
                         title='Qualifiers {}'.format(ap_title),
                         file=file)
 
             print(file=file)
             # Print the main errors
-            P.print_table([['Type'] + [err.short_name for err in TIDE._error_types], [' dAP'] +
-                           ['{:6.2f}'.format(main_errors[run_name][err.short_name]) for err in TIDE._error_types]],
-                          title='Main Errors',
-                          file=file)
+            P.print_table(
+                [['Type'] + [err.short_name for err in TIDE._error_types],
+                 [' dAP'] + [
+                     '{:6.2f}'.format(main_errors[run_name][err.short_name])
+                     for err in TIDE._error_types
+                 ]],
+                title='Main Errors',
+                file=file)
 
             print(file=file)
             # Print the per class errors
             P.print_table(
-                [['class'] + ['Type'] + [err.short_name for err in TIDE._error_types]] +
-                [[run.gt.classes[k]] + [' dAP'] +
-                 ['{:6.2f}'.format(main_per_class_errors[run_name][err.short_name][k])
-                  for err in TIDE._error_types]
-                 for k in sorted(main_per_class_errors[run_name][TIDE._error_types[0].short_name].keys())],
+                [['class'] + ['Type'] +
+                 [err.short_name for err in TIDE._error_types]] +
+                [[run.gt.classes[k]] + [' dAP'] + [
+                    '{:6.2f}'.format(
+                        main_per_class_errors[run_name][err.short_name][k])
+                    for err in TIDE._error_types
+                ] for k in sorted(main_per_class_errors[run_name][
+                    TIDE._error_types[0].short_name].keys())],
                 title='Main Per Class Errors',
                 file=file)
 
             print(file=file)
             # Print the special errors
             P.print_table(
-                [['Type'] + [err.short_name for err in TIDE._special_error_types], [' dAP'] +
-                 ['{:6.2f}'.format(special_errors[run_name][err.short_name]) for err in TIDE._special_error_types]],
+                [['Type'] +
+                 [err.short_name for err in TIDE._special_error_types],
+                 [' dAP'] + [
+                     '{:6.2f}'.format(special_errors[run_name][err.short_name])
+                     for err in TIDE._special_error_types
+                 ]],
                 title='Special Error',
                 file=file)
 
@@ -646,19 +711,27 @@ class TIDE:
 
         errors = self.get_all_errors()
 
-        max_main_error = max(sum([list(x.values()) for x in errors['main'].values()], []))
-        max_spec_error = max(sum([list(x.values()) for x in errors['special'].values()], []))
+        max_main_error = max(
+            sum([list(x.values()) for x in errors['main'].values()], []))
+        max_spec_error = max(
+            sum([list(x.values()) for x in errors['special'].values()], []))
         dap_granularity = 5  # The max will round up to the nearest unit of this
 
         # Round the plotter's dAP range up to the nearest granularity units
         if max_main_error > self.plotter.MAX_MAIN_DELTA_AP:
-            self.plotter.MAX_MAIN_DELTA_AP = math.ceil(max_main_error / dap_granularity) * dap_granularity
+            self.plotter.MAX_MAIN_DELTA_AP = math.ceil(
+                max_main_error / dap_granularity) * dap_granularity
         if max_spec_error > self.plotter.MAX_SPECIAL_DELTA_AP:
-            self.plotter.MAX_SPECIAL_DELTA_AP = math.ceil(max_spec_error / dap_granularity) * dap_granularity
+            self.plotter.MAX_SPECIAL_DELTA_AP = math.ceil(
+                max_spec_error / dap_granularity) * dap_granularity
 
         # Do the plotting now
         for run_name, run in self.runs.items():
-            self.plotter.make_summary_plot(out_dir, errors, run_name, run.mode, hbar_names=True)
+            self.plotter.make_summary_plot(out_dir,
+                                           errors,
+                                           run_name,
+                                           run.mode,
+                                           hbar_names=True)
 
     def get_main_errors(self):
         errors = {}
@@ -667,7 +740,10 @@ class TIDE:
             if run_name in self.run_main_errors:
                 errors[run_name] = self.run_main_errors[run_name]
             else:
-                errors[run_name] = {error.short_name: value for error, value in run.fix_main_errors().items()}
+                errors[run_name] = {
+                    error.short_name: value
+                    for error, value in run.fix_main_errors().items()
+                }
 
         return errors
 
@@ -678,7 +754,11 @@ class TIDE:
             if run_name in self.run_main_per_class_errors:
                 errors[run_name] = self.run_main_per_class_errors[run_name]
             else:
-                errors[run_name] = {error.short_name: value for error, value in run.fix_main_per_class_errors().items()}
+                errors[run_name] = {
+                    error.short_name: value
+                    for error, value in
+                    run.fix_main_per_class_errors().items()
+                }
 
         return errors
 
@@ -689,7 +769,10 @@ class TIDE:
             if run_name in self.run_special_errors:
                 errors[run_name] = self.run_special_errors[run_name]
             else:
-                errors[run_name] = {error.short_name: value for error, value in run.fix_special_errors().items()}
+                errors[run_name] = {
+                    error.short_name: value
+                    for error, value in run.fix_special_errors().items()
+                }
 
         return errors
 
@@ -700,7 +783,10 @@ class TIDE:
                         'special': { run_name: { error_name: float } },
                 }
                 """
-        return {'main': self.get_main_errors(), 'special': self.get_special_errors()}
+        return {
+            'main': self.get_main_errors(),
+            'special': self.get_special_errors()
+        }
 
     def get_confusion_matrix(self):
         confusion_matrix = {}
