@@ -166,23 +166,26 @@ class ClassedAPDataObject:
             curves = [x.get_pr_curve() for x in list(self.objs.values())]
             x_range = curves[0][0]
             y_range = [0] * len(curves[0][1])
+            scores_range = [0] * len(curves[0][1])
 
             curves = [c for c in curves if c is not None]
 
-            for x, y in curves:
+            for x, y, scores in curves:
                 for i in range(len(y)):
                     y_range[i] += y[i]
+                    scores_range[i] += scores[i]
 
             for i in range(len(y_range)):
                 y_range[i] /= len(curves)
+                scores_range[i] /= len(curves)
         else:
             curve = self.objs[cat_id].get_pr_curve()
             if curve is not None:
-                x_range, y_range = curve
+                x_range, y_range, scores_range = curve
             else:
                 return None
 
-        return x_range, y_range
+        return x_range, y_range, scores_range
 
 
 # Note: Unused.
