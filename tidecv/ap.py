@@ -74,6 +74,7 @@ class APDataObject:
 
         precisions = []
         recalls = []
+        scores = []
         num_true = 0
         num_false = 0
 
@@ -88,6 +89,7 @@ class APDataObject:
 
             precisions.append(precision)
             recalls.append(recall)
+            scores.append(datum[0])
 
         # Smooth the curve by computing [max(precisions[i:]) for i in range(len(precisions))]
         # Basically, remove any temporary dips from the curve.
@@ -104,6 +106,9 @@ class APDataObject:
         x_range = np.array([x / resolution for x in range(resolution + 1)])
         recalls = np.array(recalls)
 
+        scores = np.array(scores)
+        scores_range = [0] * (resolution + 1)
+
         # I realize this is weird, but all it does is find the nearest precision(x) for a given x in x_range.
         # Basically, if the closest recall we have to 0.01 is 0.009 this sets precision(0.01) = precision(0.009).
         # I approximate the integral this way, because that's how COCOEval does it.
@@ -111,8 +116,9 @@ class APDataObject:
         for bar_idx, precision_idx in enumerate(indices):
             if precision_idx < len(precisions):
                 y_range[bar_idx] = precisions[precision_idx]
+                scores_range[bar_idx] = scores[precision_idx]
 
-        self.curve = (x_range, y_range)
+        self.curve = (x_range, y_range, scores_range)
 
         # Finally compute the riemann sum to get our integral.
         # avg([precision(x) for x in 0:0.01:1])
